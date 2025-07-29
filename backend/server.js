@@ -116,50 +116,61 @@
       const fetch = require('node-fetch');
       const isProduction = process.env.NODE_ENV === 'production';
       const wowzaHost = isProduction ? 'samhost.wcore.com.br' : '51.222.156.223';
+      const wowzaPort = 1935;
       
       let wowzaUrl;
       if (isStreamFile) {
         // Para streams HLS/DASH
-        wowzaUrl = `http://${wowzaHost}:1935/vod/_definst_${requestPath}`;
+        wowzaUrl = `http://${wowzaHost}:${wowzaPort}${requestPath}`;
       } else {
         // Para arquivos de vídeo diretos
-        wowzaUrl = `http://${wowzaHost}:1935/vod/_definst_${requestPath}`;
+        wowzaUrl = `http://${wowzaHost}:${wowzaPort}/vod/_definst_${requestPath}`;
       }
       
       console.log(`🔗 Redirecionando para: ${wowzaUrl}`);
       
       try {
-        // Tentar primeiro com usuário admin
-        authHeader = Buffer.from('root:FK38Ca2SuE6jvJXed97VMn').toString('base64');
+        // Tentar diferentes métodos de autenticação
+        const authMethods = [
+          { user: 'admin', pass: 'FK38Ca2SuE6jvJXed97VMn' },
+          { user: 'root', pass: 'FK38Ca2SuE6jvJXed97VMn' },
+          { user: 'admin', pass: 'Adr1an@' },
+          { user: 'root', pass: 'Adr1an@' }
+        ];
         
-        let wowzaResponse = await fetch(wowzaUrl, {
-          method: req.method,
-          headers: {
-            'Range': req.headers.range || '',
-            'User-Agent': 'Streaming-System/1.0',
-            'Authorization': `Basic ${authHeader}`
-          }
-        });
+        let wowzaResponse = null;
+        let authSuccess = false;
         
-        // Se falhou com admin, tentar com root
-        if (!wowzaResponse.ok && wowzaResponse.status === 401) {
-          console.log(`⚠️ Falha de autenticação com admin, tentando com root...`);
-          authHeader = Buffer.from('root:Adr1an@').toString('base64');
+        // Tentar cada método de autenticação
+        for (const auth of authMethods) {
+          const authHeader = Buffer.from(`${auth.user}:${auth.pass}`).toString('base64');
+          console.log(`🔐 Tentando autenticação: ${auth.user}@${wowzaHost}`);
           
-          wowzaResponse = await fetch(wowzaUrl, {
-            method: req.method,
-            headers: {
-              'Range': req.headers.range || '',
-              'User-Agent': 'Streaming-System/1.0',
-              'Authorization': `Basic ${authHeader}`
+          try {
+            wowzaResponse = await fetch(wowzaUrl, {
+              method: req.method,
+              headers: {
+                'Range': req.headers.range || '',
+                'User-Agent': 'Streaming-System/1.0',
+                'Authorization': `Basic ${authHeader}`
+              }
+            });
+            
+            if (wowzaResponse.ok) {
+              console.log(`✅ Autenticação bem-sucedida com: ${auth.user}`);
+              authSuccess = true;
+              break;
+            } else {
+              console.log(`❌ Falha na autenticação com ${auth.user}: ${wowzaResponse.status}`);
             }
-          });
+          } catch (authError) {
+            console.log(`❌ Erro de conexão com ${auth.user}:`, authError.message);
+          }
         }
         
-        // Se ainda falhou, tentar sem autenticação
-        if (!wowzaResponse.ok && wowzaResponse.status === 401) {
-          console.log(`⚠️ Falha de autenticação com root, tentando sem autenticação...`);
-          
+        // Se todas as autenticações falharam, tentar sem autenticação
+        if (!authSuccess) {
+          console.log(`🔓 Tentando acesso sem autenticação...`);
           wowzaResponse = await fetch(wowzaUrl, {
             method: req.method,
             headers: {
@@ -169,12 +180,44 @@
           });
         }
         
-        if (!wowzaResponse.ok) {
+        // Se ainda não funcionou, tentar URLs alternativas
+        if (!wowzaResponse || !wowzaResponse.ok) {
+          console.log(`🔄 Tentando URLs alternativas...`);
+          const alternativeUrls = [
+            `http://${wowzaHost}:${wowzaPort}/vod${requestPath}`,
+            `http://${wowzaHost}:${wowzaPort}${requestPath}`,
+            `http://${wowzaHost}:8086${requestPath}`,
+            `http://${wowzaHost}:80${requestPath}`
+          ];
+          
+          for (const altUrl of alternativeUrls) {
+            try {
+              console.log(`🔄 Tentando URL alternativa: ${altUrl}`);
+              const altResponse = await fetch(altUrl, {
+                method: req.method,
+                headers: {
+                  'Range': req.headers.range || '',
+                  'User-Agent': 'Streaming-System/1.0'
+                }
+              });
+              
+              if (altResponse.ok) {
+                console.log(`✅ URL alternativa funcionou: ${altUrl}`);
+                wowzaResponse = altResponse;
+                break;
+              }
+            } catch (altError) {
+              console.log(`❌ URL alternativa falhou: ${altUrl}`);
+            }
+          }
+        }
+        
+        if (!wowzaResponse || !wowzaResponse.ok) {
           console.log(`❌ Erro do Wowza: ${wowzaResponse.status} - ${wowzaResponse.statusText}`);
           
           return res.status(404).json({ 
             error: 'Vídeo não disponível no servidor de streaming',
-            details: `Status: ${wowzaResponse.status} - ${wowzaResponse.statusText}`,
+            details: `Status: ${wowzaResponse?.status || 'N/A'} - ${wowzaResponse?.statusText || 'Sem resposta'}`,
             url: wowzaUrl
           });
         }
@@ -196,22 +239,6 @@
           details: fetchError.message 
         });
       }
-      
-      // Se ainda falhou, tentar URL alternativa
-      if (!wowzaResponse.ok && wowzaResponse.status === 404) {
-        console.log(`⚠️ Arquivo não encontrado, tentando URL alternativa...`);
-        const alternativeUrl = wowzaUrl.replace('/vod/_definst_', '/vod/');
-        
-        wowzaResponse = await fetch(alternativeUrl, {
-          method: req.method,
-          headers: {
-            'Range': req.headers.range || '',
-            'User-Agent': 'Streaming-System/1.0',
-            'Authorization': `Basic ${Buffer.from('admin:FK38Ca2SuE6jvJXed97VMn').toString('base64')}`
-          }
-        });
-      }
-      
     } catch (error) {
       console.error('❌ Erro no middleware de vídeo:', error);
       return res.status(500).json({ 

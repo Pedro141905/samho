@@ -132,31 +132,42 @@ function ModalVideo({
       className="fixed inset-0 bg-black bg-opacity-95 flex justify-center items-center z-50 p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          onFechar();
+          closePreview();
         }
       }}
     >
       <div className={`bg-black rounded-lg relative ${
-        isFullscreen ? 'w-screen h-screen' : 'max-w-[90vw] max-h-[85vh] w-full h-full'
+        isFullscreen ? 'w-screen h-screen' : 'max-w-[85vw] max-h-[80vh] w-full'
       }`}>
-        <button
-          onClick={onFechar}
-          className="absolute top-4 right-4 z-20 text-white bg-red-600 hover:bg-red-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
-          aria-label="Fechar player"
-        >
-          <X size={24} />
-        </button>
+        {/* Controles do Modal */}
+        <div className="absolute top-4 right-4 z-20 flex items-center space-x-2">
+          <button
+            onClick={toggleFullscreen}
+            className="text-white bg-blue-600 hover:bg-blue-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
+            title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+          >
+            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
+          
+          <button
+            onClick={closePreview}
+            className="text-white bg-red-600 hover:bg-red-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
+            title="Fechar player"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-        <button
-          onClick={() => setIsFullscreen(!isFullscreen)}
-          className="absolute top-4 right-20 z-20 text-white bg-blue-600 hover:bg-blue-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
-          aria-label="Alternar tela cheia"
-        >
-          {isFullscreen ? '🗗' : '🗖'}
-        </button>
+        {/* Título do Vídeo */}
+        <div className="absolute top-4 left-4 z-20 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg">
+          <h3 className="font-medium">{getCurrentVideo()?.nome || 'Visualização'}</h3>
+          {isPlayingPlaylist && (
+            <p className="text-xs opacity-80">Playlist: {currentVideoIndex + 1}/{playlistVideos.length}</p>
+          )}
+        </div>
 
         {video ? (
-          <>
+        <div className={`w-full h-full ${isFullscreen ? 'p-0' : 'p-8 pt-20'}`}>
             {/* Player Universal */}
             <div className={`w-full h-full ${isFullscreen ? 'p-0' : 'p-8 pt-16'}`}>
               <UniversalVideoPlayer
@@ -617,6 +628,10 @@ export default function GerenciarVideos() {
             onChange={handleFilesChange}
             disabled={!folderSelecionada || uploading}
             className="mb-3"
+            onError={(error) => {
+              console.error('Erro no player:', error);
+              toast.error('Erro ao carregar vídeo');
+            }}
           />
           {uploading && (
             <div className="w-full bg-gray-200 rounded h-4 mb-4 overflow-hidden">
