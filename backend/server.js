@@ -129,9 +129,10 @@
       console.log(`🔗 Redirecionando para: ${wowzaUrl}`);
       
       try {
-        const authHeader = Buffer.from('admin:FK38Ca2SuE6jvJXed97VMn').toString('base64');
+        // Tentar primeiro com usuário admin
+        let authHeader = Buffer.from('admin:FK38Ca2SuE6jvJXed97VMn').toString('base64');
         
-        const wowzaResponse = await fetch(wowzaUrl, {
+        let wowzaResponse = await fetch(wowzaUrl, {
           method: req.method,
           headers: {
             'Range': req.headers.range || '',
@@ -140,12 +141,40 @@
           }
         });
         
+        // Se falhou com admin, tentar com root
+        if (!wowzaResponse.ok && wowzaResponse.status === 401) {
+          console.log(`⚠️ Falha de autenticação com admin, tentando com root...`);
+          authHeader = Buffer.from('root:Adr1an@').toString('base64');
+          
+          wowzaResponse = await fetch(wowzaUrl, {
+            method: req.method,
+            headers: {
+              'Range': req.headers.range || '',
+              'User-Agent': 'Streaming-System/1.0',
+              'Authorization': `Basic ${authHeader}`
+            }
+          });
+        }
+        
+        // Se ainda falhou, tentar sem autenticação
+        if (!wowzaResponse.ok && wowzaResponse.status === 401) {
+          console.log(`⚠️ Falha de autenticação com root, tentando sem autenticação...`);
+          
+          wowzaResponse = await fetch(wowzaUrl, {
+            method: req.method,
+            headers: {
+              'Range': req.headers.range || '',
+              'User-Agent': 'Streaming-System/1.0'
+            }
+          });
+        }
+        
         if (!wowzaResponse.ok) {
-          console.log(`❌ Erro do Wowza: ${wowzaResponse.status}`);
+          console.log(`❌ Erro do Wowza: ${wowzaResponse.status} - ${wowzaResponse.statusText}`);
           
           return res.status(404).json({ 
             error: 'Vídeo não disponível no servidor de streaming',
-            details: `Status: ${wowzaResponse.status}`,
+            details: `Status: ${wowzaResponse.status} - ${wowzaResponse.statusText}`,
             url: wowzaUrl
           });
         }

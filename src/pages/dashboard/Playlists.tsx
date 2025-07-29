@@ -809,7 +809,7 @@ const Playlists: React.FC = () => {
       {/* Modal do Player Universal */}
       {videoPlayerModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 p-4">
-          <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full relative">
+          <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full h-full relative">
             <button
               type="button"
               onClick={() => {
@@ -825,7 +825,7 @@ const Playlists: React.FC = () => {
             </button>
 
             {/* Player Universal */}
-            <div className="w-full h-full">
+            <div className="w-full h-full p-8">
               <UniversalVideoPlayer
                 src={currentVideoUrl}
                 title={playlistVideosToPlay[playlistPlayerIndex]?.nome || 'Vídeo'}

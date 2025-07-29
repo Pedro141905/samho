@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Copy, ExternalLink, Smartphone, Monitor, Globe, Code, Download, Share2, Settings, Play, Pause, Volume2, Eye } from 'lucide-react';
+import { ChevronLeft, Copy, ExternalLink, Smartphone, Monitor, Globe, Code, Download, Share2, Settings, Play, Pause, Volume2, Eye, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,8 @@ const Players: React.FC = () => {
   const { user } = useAuth();
   const [selectedPlayer, setSelectedPlayer] = useState<string>('universal');
   const [showPreview, setShowPreview] = useState(false);
+  const [showPlayerModal, setShowPlayerModal] = useState(false);
+  const [selectedPlayerForModal, setSelectedPlayerForModal] = useState<string>('');
   const [customSettings, setCustomSettings] = useState({
     autoplay: false,
     controls: true,
@@ -29,6 +31,13 @@ const Players: React.FC = () => {
     height: '400px',
     quality: 'auto',
     theme: 'dark'
+  });
+
+  // Estado para configuração ativa do player
+  const [activePlayerConfig, setActivePlayerConfig] = useState({
+    type: 'universal',
+    embedCode: '',
+    previewUrl: ''
   });
 
   const userLogin = user?.email?.split('@')[0] || `user_${user?.id || 'usuario'}`;
@@ -240,6 +249,351 @@ public class MainActivity extends AppCompatActivity {
     return '';
   };
 
+  const openPlayerModal = (playerId: string) => {
+    setSelectedPlayerForModal(playerId);
+    const config = playerConfigs.find(p => p.id === playerId);
+    if (config) {
+      setActivePlayerConfig({
+        type: playerId,
+        embedCode: config.embedCode,
+        previewUrl: config.previewUrl || streamUrl
+      });
+    }
+    setShowPlayerModal(true);
+  };
+
+  const closePlayerModal = () => {
+    setShowPlayerModal(false);
+    setSelectedPlayerForModal('');
+  };
+
+  const selectPlayer = (playerId: string) => {
+    setSelectedPlayer(playerId);
+    const config = playerConfigs.find(p => p.id === playerId);
+    if (config) {
+      setActivePlayerConfig({
+        type: playerId,
+        embedCode: config.embedCode,
+        previewUrl: config.previewUrl || streamUrl
+      });
+    }
+  };
+
+  const renderPlayerInModal = () => {
+    const config = playerConfigs.find(p => p.id === selectedPlayerForModal);
+    if (!config) return null;
+
+    switch (selectedPlayerForModal) {
+      case 'universal':
+        return (
+          <UniversalVideoPlayer
+            src={streamUrl}
+            title="Transmissão ao Vivo - Player Universal"
+            isLive={false}
+            autoplay={customSettings.autoplay}
+            muted={customSettings.muted}
+            controls={customSettings.controls}
+            streamStats={{
+              viewers: 42,
+              bitrate: 2500,
+              uptime: '01:23:45',
+              quality: '1080p'
+            }}
+            watermark={{
+              url: '/logo.png',
+              position: 'top-right',
+              opacity: 80
+            }}
+            className="w-full h-full"
+          />
+        );
+
+      case 'iframe':
+        return (
+          <iframe 
+            src={`data:text/html;charset=utf-8,${encodeURIComponent(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>
+                  body { margin: 0; background: #000; }
+                  video { width: 100%; height: 100vh; object-fit: contain; }
+                </style>
+              </head>
+              <body>
+                <video 
+                  ${customSettings.controls ? 'controls' : ''}
+                  ${customSettings.autoplay ? 'autoplay' : ''}
+                  ${customSettings.muted ? 'muted' : ''}
+                  ${customSettings.loop ? 'loop' : ''}
+                  preload="metadata"
+                  playsinline>
+                  <source src="${streamUrl}" type="application/x-mpegURL">
+                  <source src="${streamUrl.replace('.m3u8', '.mp4')}" type="video/mp4">
+                  Seu navegador não suporta o elemento de vídeo.
+                </video>
+              </body>
+              </html>
+            `)}`}
+            width="100%" 
+            height="100%" 
+            frameBorder="0" 
+            allowFullScreen
+            allow="autoplay; fullscreen; picture-in-picture"
+            className="w-full h-full"
+          />
+        );
+
+      case 'html5':
+        return (
+          <video 
+            width="100%" 
+            height="100%" 
+            controls={customSettings.controls}
+            autoPlay={customSettings.autoplay}
+            muted={customSettings.muted}
+            loop={customSettings.loop}
+            preload="metadata"
+            playsInline
+            className="w-full h-full rounded-lg"
+          >
+            <source src={streamUrl} type="application/x-mpegURL" />
+            <source src={streamUrl.replace('.m3u8', '.mp4')} type="video/mp4" />
+            Seu navegador não suporta o elemento de vídeo.
+          </video>
+        );
+
+      case 'mobile':
+        return (
+          <div className="w-full h-full bg-black flex flex-col">
+            <div className="flex-1 relative">
+              <video 
+                width="100%" 
+                height="100%" 
+                controls={customSettings.controls}
+                autoPlay={customSettings.autoplay}
+                muted={customSettings.muted}
+                loop={customSettings.loop}
+                preload="metadata"
+                playsInline
+                className="w-full h-full"
+                style={{ 
+                  touchAction: 'manipulation',
+                  WebkitTouchCallout: 'none',
+                  WebkitUserSelect: 'none'
+                }}
+              >
+                <source src={streamUrl} type="application/x-mpegURL" />
+                <source src={streamUrl.replace('.m3u8', '.mp4')} type="video/mp4" />
+                Seu navegador não suporta o elemento de vídeo.
+              </video>
+              
+              {/* Overlay mobile específico */}
+              <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Smartphone className="h-4 w-4" />
+                  <span className="text-sm font-medium">Player Mobile</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'facebook':
+        return (
+          <iframe 
+            src={`data:text/html;charset=utf-8,${encodeURIComponent(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>
+                  body { 
+                    margin: 0; 
+                    background: linear-gradient(135deg, #1877f2, #42a5f5); 
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    font-family: Arial, sans-serif;
+                  }
+                  .container {
+                    text-align: center;
+                    color: white;
+                    padding: 2rem;
+                  }
+                  .video-container {
+                    background: rgba(0,0,0,0.8);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    margin-top: 1rem;
+                  }
+                  video {
+                    width: 100%;
+                    max-width: 600px;
+                    border-radius: 8px;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h2>🔵 Facebook Live Player</h2>
+                  <p>Player otimizado para Facebook Live</p>
+                  <div class="video-container">
+                    <video 
+                      ${customSettings.controls ? 'controls' : ''}
+                      ${customSettings.autoplay ? 'autoplay' : ''}
+                      ${customSettings.muted ? 'muted' : ''}
+                      preload="metadata"
+                      playsinline>
+                      <source src="${streamUrl}" type="application/x-mpegURL">
+                      <source src="${streamUrl.replace('.m3u8', '.mp4')}" type="video/mp4">
+                    </video>
+                  </div>
+                </div>
+              </body>
+              </html>
+            `)}`}
+            width="100%" 
+            height="100%" 
+            frameBorder="0" 
+            allowFullScreen
+            className="w-full h-full"
+          />
+        );
+
+      case 'app-android':
+        return (
+          <iframe 
+            src={`data:text/html;charset=utf-8,${encodeURIComponent(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <style>
+                  body { 
+                    margin: 0; 
+                    background: linear-gradient(135deg, #4caf50, #8bc34a); 
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    font-family: 'Roboto', Arial, sans-serif;
+                  }
+                  .container {
+                    text-align: center;
+                    color: white;
+                    padding: 2rem;
+                  }
+                  .demo-container {
+                    background: rgba(0,0,0,0.9);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    margin-top: 1rem;
+                    border: 2px solid #4caf50;
+                  }
+                  video {
+                    width: 100%;
+                    max-width: 600px;
+                    border-radius: 8px;
+                  }
+                  .android-controls {
+                    margin-top: 1rem;
+                    display: flex;
+                    justify-content: center;
+                    gap: 1rem;
+                  }
+                  .android-btn {
+                    background: #4caf50;
+                    color: white;
+                    border: none;
+                    padding: 0.5rem 1rem;
+                    border-radius: 20px;
+                    cursor: pointer;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h2>🤖 Android Native Player</h2>
+                  <p>Simulação do ExoPlayer Android</p>
+                  <div class="demo-container">
+                    <video 
+                      ${customSettings.controls ? 'controls' : ''}
+                      ${customSettings.autoplay ? 'autoplay' : ''}
+                      ${customSettings.muted ? 'muted' : ''}
+                      preload="metadata"
+                      playsinline>
+                      <source src="${streamUrl}" type="application/x-mpegURL">
+                      <source src="${streamUrl.replace('.m3u8', '.mp4')}" type="video/mp4">
+                    </video>
+                    <div class="android-controls">
+                      <button class="android-btn">⏮️ Anterior</button>
+                      <button class="android-btn">⏯️ Play/Pause</button>
+                      <button class="android-btn">⏭️ Próximo</button>
+                    </div>
+                  </div>
+                </div>
+              </body>
+              </html>
+            `)}`}
+            width="100%" 
+            height="100%" 
+            frameBorder="0" 
+            allowFullScreen
+            className="w-full h-full"
+          />
+        );
+
+      default:
+        return (
+          <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+            <div className="text-white text-center">
+              <Play className="h-16 w-16 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Player {selectedPlayerForModal}</h3>
+              <p className="text-gray-300">
+                Player em desenvolvimento ou não disponível para preview.
+              </p>
+              <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+                <p className="text-sm text-gray-400">Use o código de incorporação para testar:</p>
+                <div className="mt-2 p-2 bg-gray-700 rounded text-xs font-mono text-left">
+                  {config?.embedCode.substring(0, 100)}...
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'app-android':
+        return (
+          <div className="w-full h-full bg-green-600 rounded-lg flex items-center justify-center">
+            <div className="text-white text-center">
+              <Code className="h-16 w-16 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">App Android Nativo</h3>
+              <p className="text-gray-100">
+                Este é código para integração em aplicativos Android.<br />
+                Use o ExoPlayer para melhor performance.
+              </p>
+              <div className="mt-4 p-4 bg-green-700 rounded-lg">
+                <p className="text-sm text-green-200">Recursos nativos:</p>
+                <ul className="text-sm text-green-100 mt-2 space-y-1">
+                  <li>• Performance nativa</li>
+                  <li>• Picture-in-picture</li>
+                  <li>• Offline playback</li>
+                  <li>• Controles customizáveis</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+            <p className="text-gray-500">Player não implementado</p>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center mb-6">
@@ -253,7 +607,7 @@ public class MainActivity extends AppCompatActivity {
         <h1 className="text-3xl font-bold text-gray-900">Players de Vídeo</h1>
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center"
+          className="w-full h-full"
         >
           <Eye className="h-4 w-4 mr-2" />
           {showPreview ? 'Ocultar Preview' : 'Mostrar Preview'}
@@ -304,7 +658,7 @@ public class MainActivity extends AppCompatActivity {
             return (
               <div
                 key={config.id}
-                onClick={() => setSelectedPlayer(config.id)}
+                onClick={() => selectPlayer(config.id)}
                 className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                   selectedPlayer === config.id
                     ? 'border-primary-500 bg-primary-50'
@@ -330,6 +684,25 @@ public class MainActivity extends AppCompatActivity {
                       +{config.features.length - 3} mais
                     </span>
                   )}
+                </div>
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={() => openPlayerModal(config.id)}
+                    className="bg-primary-600 text-white px-3 py-1 rounded text-sm hover:bg-primary-700 flex items-center mr-2"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Testar Player
+                  </button>
+                  <button
+                    onClick={() => selectPlayer(config.id)}
+                    className={`px-3 py-1 rounded text-sm flex items-center ${
+                      selectedPlayer === config.id
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {selectedPlayer === config.id ? 'Selecionado' : 'Selecionar'}
+                  </button>
                 </div>
               </div>
             );
@@ -595,6 +968,31 @@ public class MainActivity extends AppCompatActivity {
         </div>
       </div>
     </div>
+
+      {/* Modal do Player */}
+      {showPlayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
+          <div className="bg-black rounded-lg w-[90vw] h-[90vh] relative border border-gray-600">
+            <button
+              onClick={closePlayerModal}
+              className="absolute top-2 right-2 z-50 text-white bg-red-600 hover:bg-red-700 rounded-full p-2 transition-colors"
+              aria-label="Fechar player"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="absolute top-2 left-2 z-40 bg-black bg-opacity-80 text-white px-3 py-2 rounded-lg">
+              <h3 className="font-medium">
+                {playerConfigs.find(p => p.id === selectedPlayerForModal)?.name}
+              </h3>
+            </div>
+
+            <div className="w-full h-full p-4">
+              {renderPlayerInModal()}
+            </div>
+          </div>
+        </div>
+      )}
   );
 };
 

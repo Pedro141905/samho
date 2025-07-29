@@ -322,7 +322,7 @@ class WowzaStreamingService {
         // Construir caminho baseado no tipo de arquivo
         let streamPath;
         if (fileExtension === 'mp4') {
-            streamPath = `mp4:${userLogin}/${folderName}/${fileName}`;
+            streamPath = `${userLogin}/${folderName}/${fileName}`;
         } else if (['avi', 'mov', 'wmv'].includes(fileExtension)) {
             streamPath = `${userLogin}/${folderName}/${fileName}`;
         } else {
@@ -330,9 +330,9 @@ class WowzaStreamingService {
         }
         
         return {
-            hlsUrl: `http://${this.wowzaHost}:1935/vod/_definst_/${streamPath}/playlist.m3u8`,
-            rtmpUrl: `rtmp://${this.wowzaHost}:1935/vod/_definst_/${streamPath}`,
-            directUrl: `http://${this.wowzaHost}:1935/vod/_definst_/${streamPath}/media.mp4`
+            hlsUrl: `/content/${streamPath}`,
+            rtmpUrl: `/content/${streamPath}`,
+            directUrl: `/content/${streamPath}`
         };
     }
 

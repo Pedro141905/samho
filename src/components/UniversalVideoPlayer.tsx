@@ -109,11 +109,13 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       setIsLoading(true);
       setConnectionStatus('connecting');
       setError(null);
+      console.log('🎥 Iniciando carregamento do vídeo...');
     };
 
     const handleCanPlay = () => {
       setIsLoading(false);
       setConnectionStatus('connected');
+      console.log('✅ Vídeo pronto para reprodução');
       if (onReady) onReady(video);
     };
 
@@ -148,7 +150,9 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     const handleError = (e: Event) => {
       setIsLoading(false);
       setConnectionStatus('disconnected');
-      const errorMsg = 'Erro ao carregar vídeo';
+      const target = e.target as HTMLVideoElement;
+      const errorMsg = `Erro ao carregar vídeo: ${target.error?.message || 'Erro desconhecido'}`;
+      console.error('❌ Erro no vídeo:', target.error);
       setError(errorMsg);
       if (onError) onError(e);
     };
@@ -212,6 +216,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     if (videoUrl.includes('.m3u8')) {
       // Stream HLS
       if (Hls.isSupported()) {
+        console.log('🔄 Usando HLS.js para reprodução');
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: isLive,
@@ -226,6 +231,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log('✅ Manifest HLS carregado com sucesso');
           if (autoplay) {
             video.play().catch(console.error);
           }
@@ -234,7 +240,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         hls.on(Hls.Events.ERROR, (event, data) => {
           console.error('HLS Error:', data);
           if (data.fatal) {
-            setError('Erro fatal no stream HLS');
+            setError(`Erro fatal no stream HLS: ${data.details || 'Erro desconhecido'}`);
             setConnectionStatus('disconnected');
           }
         });
@@ -242,6 +248,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         hlsRef.current = hls;
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // Safari nativo
+        console.log('🍎 Usando Safari nativo para HLS');
         video.src = videoUrl;
         if (autoplay) {
           video.play().catch(console.error);
@@ -251,6 +258,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       }
     } else {
       // Vídeo regular
+      console.log('📹 Carregando vídeo regular (MP4/etc)');
       video.src = videoUrl;
       if (autoplay) {
         video.play().catch(console.error);

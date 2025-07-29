@@ -78,6 +78,9 @@ router.get('/', authMiddleware, async (req, res) => {
       [`%${folderPath}%`]
     );
 
+    console.log(`📁 Buscando vídeos na pasta: ${folderPath}`);
+    console.log(`📊 Encontrados ${rows.length} vídeos no banco`);
+
     const videos = rows.map(video => {
       let url;
       if (video.url.startsWith('http')) {
@@ -86,7 +89,10 @@ router.get('/', authMiddleware, async (req, res) => {
         if (video.url.includes('mp4:')) {
           url = video.url;
         } else {
-          url = wowzaService.buildVideoUrl(userLogin, folderName, video.nome).hlsUrl;
+          // Construir URL correta para o vídeo
+          const fileName = video.nome;
+          url = `/content${video.url}`;
+          console.log(`🎥 Vídeo: ${fileName} -> URL: ${url}`);
         }
       }
       return {
@@ -101,6 +107,7 @@ router.get('/', authMiddleware, async (req, res) => {
       };
     });
 
+    console.log(`✅ Retornando ${videos.length} vídeos processados`);
     res.json(videos);
   } catch (err) {
     console.error('Erro ao buscar vídeos:', err);
@@ -153,7 +160,10 @@ router.post('/upload', authMiddleware, upload.single('video'), async (req, res) 
     await SSHManager.uploadFile(serverId, req.file.path, remotePath);
     await fs.unlink(req.file.path);
 
+    console.log(`✅ Arquivo enviado para: ${remotePath}`);
+
     const relativePath = `/${userLogin}/${folderName}/${req.file.filename}`;
+    console.log(`💾 Salvando no banco com path: ${relativePath}`);
 
     const [result] = await db.execute(
       `INSERT INTO playlists_videos (
@@ -168,10 +178,12 @@ router.post('/upload', authMiddleware, upload.single('video'), async (req, res) 
       [spaceMB, folderId]
     );
 
+    console.log(`✅ Vídeo salvo no banco com ID: ${result.insertId}`);
+
     res.status(201).json({
       id: result.insertId,
       nome: req.file.originalname,
-      url: relativePath,
+      url: `/content${relativePath}`,
       duracao,
       tamanho
     });

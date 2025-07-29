@@ -110,7 +110,7 @@ function ModalVideo({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 p-4">
-      <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full relative">
+      <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full h-full relative">
         <button
           onClick={onFechar}
           className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-80 transition-colors duration-200"
@@ -122,7 +122,7 @@ function ModalVideo({
         {video ? (
           <>
             {/* Player Universal */}
-            <div className="w-full h-full">
+            <div className="w-full h-full p-8">
               <UniversalVideoPlayer
                 src={buildVideoUrl(video)}
                 title={video.nome}
