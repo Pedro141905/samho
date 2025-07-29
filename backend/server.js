@@ -130,7 +130,7 @@
       
       try {
         // Tentar primeiro com usuário admin
-        let authHeader = Buffer.from('admin:FK38Ca2SuE6jvJXed97VMn').toString('base64');
+        authHeader = Buffer.from('root:FK38Ca2SuE6jvJXed97VMn').toString('base64');
         
         let wowzaResponse = await fetch(wowzaUrl, {
           method: req.method,
@@ -194,6 +194,21 @@
         return res.status(500).json({ 
           error: 'Erro interno do servidor de streaming',
           details: fetchError.message 
+        });
+      }
+      
+      // Se ainda falhou, tentar URL alternativa
+      if (!wowzaResponse.ok && wowzaResponse.status === 404) {
+        console.log(`⚠️ Arquivo não encontrado, tentando URL alternativa...`);
+        const alternativeUrl = wowzaUrl.replace('/vod/_definst_', '/vod/');
+        
+        wowzaResponse = await fetch(alternativeUrl, {
+          method: req.method,
+          headers: {
+            'Range': req.headers.range || '',
+            'User-Agent': 'Streaming-System/1.0',
+            'Authorization': `Basic ${Buffer.from('admin:FK38Ca2SuE6jvJXed97VMn').toString('base64')}`
+          }
         });
       }
       

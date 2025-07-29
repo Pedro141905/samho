@@ -69,7 +69,7 @@ class WowzaStreamingService {
                 this.wowzaHost = server.ip;
                 this.wowzaPort = 8087; // Porta da API REST do Wowza
                 this.wowzaUser = 'admin'; // Usuário padrão da API
-                this.wowzaPassword = server.senha_root; // Usar senha root como senha da API
+                this.wowzaPassword = 'FK38Ca2SuE6jvJXed97VMn'; // Senha correta do Wowza
                 this.serverInfo = {
                     id: server.codigo,
                     nome: server.nome,

@@ -99,6 +99,30 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     return src;
   };
 
+  // Função para tentar URLs alternativas em caso de erro
+  const tryAlternativeUrls = async (originalSrc: string) => {
+    const alternatives = [
+      originalSrc,
+      originalSrc.replace('/content/', '/content/'),
+      originalSrc.replace('http://51.222.156.223:1935/vod/_definst_', '/content'),
+      originalSrc.replace('http://51.222.156.223:1935/vod/', '/content/')
+    ];
+
+    for (const url of alternatives) {
+      try {
+        const response = await fetch(url, { method: 'HEAD' });
+        if (response.ok) {
+          console.log(`✅ URL alternativa funcionando: ${url}`);
+          return url;
+        }
+      } catch (error) {
+        console.log(`❌ URL alternativa falhou: ${url}`);
+      }
+    }
+
+    return originalSrc; // Retornar original se nenhuma alternativa funcionar
+  };
+
   // Inicializar player
   useEffect(() => {
     const video = videoRef.current;
@@ -147,11 +171,23 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       setIsMuted(video.muted);
     };
 
-    const handleError = (e: Event) => {
+    const handleError = async (e: Event) => {
       setIsLoading(false);
       setConnectionStatus('disconnected');
       const target = e.target as HTMLVideoElement;
-      const errorMsg = `Erro ao carregar vídeo: ${target.error?.message || 'Erro desconhecido'}`;
+      
+      // Tentar URLs alternativas antes de mostrar erro
+      if (src) {
+        console.log('🔄 Tentando URLs alternativas...');
+        const alternativeUrl = await tryAlternativeUrls(src);
+        if (alternativeUrl !== src) {
+          console.log(`🔄 Tentando URL alternativa: ${alternativeUrl}`);
+          target.src = alternativeUrl;
+          return;
+        }
+      }
+      
+      const errorMsg = `Erro ao carregar vídeo: ${target.error?.message || 'Arquivo não encontrado ou sem permissão'}`;
       console.error('❌ Erro no vídeo:', target.error);
       setError(errorMsg);
       if (onError) onError(e);

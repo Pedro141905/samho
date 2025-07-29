@@ -86,14 +86,10 @@ router.get('/', authMiddleware, async (req, res) => {
       if (video.url.startsWith('http')) {
         url = video.url;
       } else {
-        if (video.url.includes('mp4:')) {
-          url = video.url;
-        } else {
-          // Construir URL correta para o vídeo
-          const fileName = video.nome;
-          url = `/content${video.url}`;
-          console.log(`🎥 Vídeo: ${fileName} -> URL: ${url}`);
-        }
+        // Construir URL correta para o vídeo
+        const fileName = video.nome;
+        url = `/content${video.url}`;
+        console.log(`🎥 Vídeo: ${fileName} -> URL: ${url}`);
       }
       return {
         id: video.id,
@@ -193,6 +189,53 @@ router.post('/upload', authMiddleware, upload.single('video'), async (req, res) 
       await fs.unlink(req.file.path).catch(() => {});
     }
     res.status(500).json({ error: 'Erro no upload do vídeo', details: err.message });
+  }
+});
+
+// Rota para testar acesso a vídeos
+router.get('/test/:userId/:folder/:filename', authMiddleware, async (req, res) => {
+  try {
+    const { userId, folder, filename } = req.params;
+    const userLogin = req.user.email.split('@')[0];
+    
+    // Verificar se arquivo existe no servidor via SSH
+    const [serverRows] = await db.execute(
+      'SELECT codigo_servidor FROM streamings WHERE codigo_cliente = ? LIMIT 1',
+      [userId]
+    );
+    
+    const serverId = serverRows.length > 0 ? serverRows[0].codigo_servidor : 1;
+    const remotePath = `/usr/local/WowzaStreamingEngine/content/${userLogin}/${folder}/${filename}`;
+    
+    try {
+      const fileInfo = await SSHManager.getFileInfo(serverId, remotePath);
+      
+      if (fileInfo.exists) {
+        res.json({
+          success: true,
+          exists: true,
+          path: remotePath,
+          info: fileInfo,
+          url: `/content/${userLogin}/${folder}/${filename}`
+        });
+      } else {
+        res.json({
+          success: false,
+          exists: false,
+          path: remotePath,
+          error: 'Arquivo não encontrado no servidor'
+        });
+      }
+    } catch (sshError) {
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao verificar arquivo no servidor',
+        details: sshError.message
+      });
+    }
+  } catch (err) {
+    console.error('Erro no teste de vídeo:', err);
+    res.status(500).json({ error: 'Erro no teste de vídeo', details: err.message });
   }
 });
 

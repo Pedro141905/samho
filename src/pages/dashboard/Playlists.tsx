@@ -808,8 +808,18 @@ const Playlists: React.FC = () => {
 
       {/* Modal do Player Universal */}
       {videoPlayerModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 p-4">
-          <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full h-full relative">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-95 flex justify-center items-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setVideoPlayerModalOpen(false);
+              setPlaylistVideosToPlay([]);
+              setPlaylistPlayerIndex(0);
+              setCurrentVideoUrl('');
+            }
+          }}
+        >
+          <div className="bg-black rounded-lg max-w-[90vw] max-h-[85vh] w-full h-full relative">
             <button
               type="button"
               onClick={() => {
@@ -818,14 +828,14 @@ const Playlists: React.FC = () => {
                 setPlaylistPlayerIndex(0);
                 setCurrentVideoUrl('');
               }}
-              className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-80 transition-colors duration-200"
+              className="absolute top-4 right-4 z-20 text-white bg-red-600 hover:bg-red-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
               aria-label="Fechar player"
             >
               <X size={24} />
             </button>
 
             {/* Player Universal */}
-            <div className="w-full h-full p-8">
+            <div className="w-full h-full p-8 pt-16">
               <UniversalVideoPlayer
                 src={currentVideoUrl}
                 title={playlistVideosToPlay[playlistPlayerIndex]?.nome || 'Vídeo'}
@@ -838,12 +848,12 @@ const Playlists: React.FC = () => {
 
             {/* Controles da playlist */}
             {playlistVideosToPlay.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg">
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 text-white px-6 py-3 rounded-lg shadow-lg">
                 <div className="flex items-center justify-between space-x-6">
                   <button
                     disabled={playlistPlayerIndex === 0}
                     onClick={goToPreviousVideo}
-                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                    className="px-4 py-2 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200 text-sm font-medium"
                   >
                     ← Anterior
                   </button>
@@ -860,7 +870,7 @@ const Playlists: React.FC = () => {
                   <button
                     disabled={playlistPlayerIndex === playlistVideosToPlay.length - 1}
                     onClick={goToNextVideo}
-                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                    className="px-4 py-2 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200 text-sm font-medium"
                   >
                     Próximo →
                   </button>

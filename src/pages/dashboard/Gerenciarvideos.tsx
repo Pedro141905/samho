@@ -53,6 +53,7 @@ function ModalVideo({
   playlist?: Video[];
 }) {
   const [indexAtual, setIndexAtual] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (playlist && playlist.length > 0) setIndexAtual(0);
@@ -61,6 +62,24 @@ function ModalVideo({
   useEffect(() => {
     setIndexAtual(0);
   }, [videoAtual]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onFechar();
+      }
+    };
+
+    if (aberto) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [aberto, onFechar]);
 
   if (!aberto) return null;
 
@@ -109,20 +128,37 @@ function ModalVideo({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 p-4">
-      <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full h-full relative">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-95 flex justify-center items-center z-50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onFechar();
+        }
+      }}
+    >
+      <div className={`bg-black rounded-lg relative ${
+        isFullscreen ? 'w-screen h-screen' : 'max-w-[90vw] max-h-[85vh] w-full h-full'
+      }`}>
         <button
           onClick={onFechar}
-          className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-80 transition-colors duration-200"
+          className="absolute top-4 right-4 z-20 text-white bg-red-600 hover:bg-red-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
           aria-label="Fechar player"
         >
           <X size={24} />
         </button>
 
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          className="absolute top-4 right-20 z-20 text-white bg-blue-600 hover:bg-blue-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
+          aria-label="Alternar tela cheia"
+        >
+          {isFullscreen ? '🗗' : '🗖'}
+        </button>
+
         {video ? (
           <>
             {/* Player Universal */}
-            <div className="w-full h-full p-8">
+            <div className={`w-full h-full ${isFullscreen ? 'p-0' : 'p-8 pt-16'}`}>
               <UniversalVideoPlayer
                 src={buildVideoUrl(video)}
                 title={video.nome}
@@ -135,12 +171,12 @@ function ModalVideo({
 
             {/* Controles da playlist */}
             {videos.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg">
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 text-white px-6 py-3 rounded-lg shadow-lg">
                 <div className="flex items-center justify-between space-x-6">
                   <button
                     onClick={goToPreviousVideo}
                     disabled={indexAtual === 0}
-                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                    className="px-4 py-2 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200 text-sm font-medium"
                   >
                     ← Anterior
                   </button>
@@ -157,7 +193,7 @@ function ModalVideo({
                   <button
                     onClick={goToNextVideo}
                     disabled={indexAtual === videos.length - 1}
-                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                    className="px-4 py-2 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200 text-sm font-medium"
                   >
                     Próximo →
                   </button>
