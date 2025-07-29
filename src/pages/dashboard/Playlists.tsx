@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, PlusCircle, X, Edit2, Trash2, Play } from 'lucide-react';
+import { ChevronDown, ChevronRight, PlusCircle, X, Edit2, Trash2, Play, Minimize, Maximize } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import UniversalVideoPlayer from '../../components/UniversalVideoPlayer';
@@ -60,6 +60,7 @@ const Playlists: React.FC = () => {
   const [playlistVideosToPlay, setPlaylistVideosToPlay] = useState<Video[]>([]);
   const [playlistPlayerIndex, setPlaylistPlayerIndex] = useState(0);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Modal de confirmação
   const [modalConfirmacao, setModalConfirmacao] = useState({
@@ -69,6 +70,14 @@ const Playlists: React.FC = () => {
     mensagem: '',
     detalhes: ''
   });
+
+  const closePlayerModal = () => {
+    setVideoPlayerModalOpen(false);
+    setPlaylistVideosToPlay([]);
+    setPlaylistPlayerIndex(0);
+    setCurrentVideoUrl('');
+    setIsFullscreen(false);
+  };
 
   // Função para construir URL correta do vídeo
   const buildVideoUrl = (url: string) => {
@@ -812,30 +821,40 @@ const Playlists: React.FC = () => {
           className="fixed inset-0 bg-black bg-opacity-95 flex justify-center items-center z-50 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setVideoPlayerModalOpen(false);
-              setPlaylistVideosToPlay([]);
-              setPlaylistPlayerIndex(0);
-              setCurrentVideoUrl('');
+              closePlayerModal();
             }
           }}
         >
-          <div className="bg-black rounded-lg max-w-[90vw] max-h-[85vh] w-full h-full relative">
-            <button
-              type="button"
-              onClick={() => {
-                setVideoPlayerModalOpen(false);
-                setPlaylistVideosToPlay([]);
-                setPlaylistPlayerIndex(0);
-                setCurrentVideoUrl('');
-              }}
-              className="absolute top-4 right-4 z-20 text-white bg-red-600 hover:bg-red-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
-              aria-label="Fechar player"
-            >
-              <X size={24} />
-            </button>
+          <div className="bg-black rounded-lg max-w-[85vw] max-h-[80vh] w-full relative">
+            {/* Controles do Modal */}
+            <div className="absolute top-4 right-4 z-20 flex items-center space-x-2">
+              <button
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                className="text-white bg-blue-600 hover:bg-blue-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
+                title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+              >
+                {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+              </button>
+              
+              <button
+                onClick={closePlayerModal}
+                className="text-white bg-red-600 hover:bg-red-700 rounded-full p-3 transition-colors duration-200 shadow-lg"
+                title="Fechar player"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Título do Vídeo */}
+            <div className="absolute top-4 left-4 z-20 bg-black bg-opacity-60 text-white px-4 py-2 rounded-lg">
+              <h3 className="font-medium">{playlistVideosToPlay[playlistPlayerIndex]?.nome || 'Playlist'}</h3>
+              <p className="text-xs opacity-80">
+                {playlistPlayerIndex + 1} de {playlistVideosToPlay.length}
+              </p>
+            </div>
 
             {/* Player Universal */}
-            <div className="w-full h-full p-8 pt-16">
+            <div className={`w-full h-full ${isFullscreen ? 'p-0' : 'p-8 pt-20'}`}>
               <UniversalVideoPlayer
                 src={currentVideoUrl}
                 title={playlistVideosToPlay[playlistPlayerIndex]?.nome || 'Vídeo'}
@@ -843,6 +862,10 @@ const Playlists: React.FC = () => {
                 controls={true}
                 onEnded={handleVideoEnded}
                 className="w-full h-full"
+                onError={(error) => {
+                  console.error('Erro no player:', error);
+                  toast.error('Erro ao carregar vídeo');
+                }}
               />
             </div>
 
