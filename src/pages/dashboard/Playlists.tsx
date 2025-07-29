@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, PlusCircle, X, Edit2, Trash2, Play } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import UniversalVideoPlayer from '../../components/UniversalVideoPlayer';
 
 import {
   DndContext,
@@ -56,9 +57,9 @@ const Playlists: React.FC = () => {
   const [expandedFolders, setExpandedFolders] = useState<Record<number, boolean>>({});
 
   const [videoPlayerModalOpen, setVideoPlayerModalOpen] = useState(false);
-  const [videoPlayerSrc, setVideoPlayerSrc] = useState<string>('');
   const [playlistVideosToPlay, setPlaylistVideosToPlay] = useState<Video[]>([]);
   const [playlistPlayerIndex, setPlaylistPlayerIndex] = useState(0);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('');
 
   // Modal de confirmação
   const [modalConfirmacao, setModalConfirmacao] = useState({
@@ -68,6 +69,24 @@ const Playlists: React.FC = () => {
     mensagem: '',
     detalhes: ''
   });
+
+  // Função para construir URL correta do vídeo
+  const buildVideoUrl = (url: string) => {
+    if (!url) return '';
+    
+    // Se já é uma URL completa, usar como está
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // Para arquivos locais, usar o proxy do backend
+    if (url.startsWith('/') || url.includes('content/')) {
+      const cleanPath = url.replace('/content', '').replace(/^\/+/, '');
+      return `/content/${cleanPath}`;
+    }
+    
+    return url;
+  };
 
   const carregarPlaylists = async () => {
     try {
@@ -403,7 +422,9 @@ const Playlists: React.FC = () => {
           onClick={(e) => {
             e.stopPropagation();
             if (video.url) {
-              setVideoPlayerSrc(video.url);
+              setCurrentVideoUrl(buildVideoUrl(video.url));
+              setPlaylistVideosToPlay([video]);
+              setPlaylistPlayerIndex(0);
               setVideoPlayerModalOpen(true);
             }
           }}
@@ -438,7 +459,9 @@ const Playlists: React.FC = () => {
             onClick={(e) => {
               e.stopPropagation();
               if (video.url) {
-                setVideoPlayerSrc(video.url);
+                setCurrentVideoUrl(buildVideoUrl(video.url));
+                setPlaylistVideosToPlay([video]);
+                setPlaylistPlayerIndex(0);
                 setVideoPlayerModalOpen(true);
               }
             }}
@@ -502,8 +525,14 @@ const Playlists: React.FC = () => {
       const playlistVideos = await response.json();
       const videos: Video[] = playlistVideos.map((item: any) => item.videos);
       
+      if (videos.length === 0) {
+        toast.warning('Esta playlist não possui vídeos');
+        return;
+      }
+      
       setPlaylistVideosToPlay(videos);
       setPlaylistPlayerIndex(0);
+      setCurrentVideoUrl(buildVideoUrl(videos[0].url || ''));
       setVideoPlayerModalOpen(true);
     } catch (error) {
       console.error('Erro ao carregar playlist:', error);
@@ -511,19 +540,31 @@ const Playlists: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (playlistVideosToPlay.length > 0 && videoPlayerModalOpen) {
-      setVideoPlayerSrc(playlistVideosToPlay[playlistPlayerIndex]?.url || '');
-    }
-  }, [playlistPlayerIndex, playlistVideosToPlay, videoPlayerModalOpen]);
-
   const handleVideoEnded = () => {
     if (playlistPlayerIndex < playlistVideosToPlay.length - 1) {
-      setPlaylistPlayerIndex(i => i + 1);
+      const nextIndex = playlistPlayerIndex + 1;
+      setPlaylistPlayerIndex(nextIndex);
+      setCurrentVideoUrl(buildVideoUrl(playlistVideosToPlay[nextIndex].url || ''));
     } else {
-      setVideoPlayerModalOpen(false);
-      setPlaylistVideosToPlay([]);
+      // Repetir playlist do início
       setPlaylistPlayerIndex(0);
+      setCurrentVideoUrl(buildVideoUrl(playlistVideosToPlay[0].url || ''));
+    }
+  };
+
+  const goToPreviousVideo = () => {
+    if (playlistPlayerIndex > 0) {
+      const prevIndex = playlistPlayerIndex - 1;
+      setPlaylistPlayerIndex(prevIndex);
+      setCurrentVideoUrl(buildVideoUrl(playlistVideosToPlay[prevIndex].url || ''));
+    }
+  };
+
+  const goToNextVideo = () => {
+    if (playlistPlayerIndex < playlistVideosToPlay.length - 1) {
+      const nextIndex = playlistPlayerIndex + 1;
+      setPlaylistPlayerIndex(nextIndex);
+      setCurrentVideoUrl(buildVideoUrl(playlistVideosToPlay[nextIndex].url || ''));
     }
   };
 
@@ -765,55 +806,65 @@ const Playlists: React.FC = () => {
         </div>
       )}
 
+      {/* Modal do Player Universal */}
       {videoPlayerModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4">
-          <div className="bg-black rounded max-w-[90vw] max-h-[90vh] w-full h-full relative flex flex-col items-center p-4">
-            <video
-              key={videoPlayerSrc}
-              src={videoPlayerSrc}
-              controls
-              autoPlay
-              className="w-full h-full rounded object-contain"
-              onEnded={
-                playlistVideosToPlay.length > 0
-                  ? handleVideoEnded
-                  : () => setVideoPlayerModalOpen(false)
-              }
-            />
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 p-4">
+          <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full relative">
             <button
               type="button"
               onClick={() => {
                 setVideoPlayerModalOpen(false);
                 setPlaylistVideosToPlay([]);
                 setPlaylistPlayerIndex(0);
+                setCurrentVideoUrl('');
               }}
-              className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded p-1 hover:bg-opacity-80 transition-colors duration-200"
+              className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-80 transition-colors duration-200"
               aria-label="Fechar player"
             >
               <X size={24} />
             </button>
 
-            {playlistVideosToPlay.length > 0 && (
-              <div className="flex justify-between w-full mt-2 text-white px-2">
-                <button
-                  disabled={playlistPlayerIndex === 0}
-                  onClick={() => setPlaylistPlayerIndex(i => Math.max(i - 1, 0))}
-                  className="px-3 py-1 bg-zinc-700 rounded disabled:opacity-50 transition-colors duration-200"
-                >
-                  Anterior
-                </button>
+            {/* Player Universal */}
+            <div className="w-full h-full">
+              <UniversalVideoPlayer
+                src={currentVideoUrl}
+                title={playlistVideosToPlay[playlistPlayerIndex]?.nome || 'Vídeo'}
+                autoplay={true}
+                controls={true}
+                onEnded={handleVideoEnded}
+                className="w-full h-full"
+              />
+            </div>
 
-                <span>
-                  {playlistPlayerIndex + 1} / {playlistVideosToPlay.length}
-                </span>
+            {/* Controles da playlist */}
+            {playlistVideosToPlay.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg">
+                <div className="flex items-center justify-between space-x-6">
+                  <button
+                    disabled={playlistPlayerIndex === 0}
+                    onClick={goToPreviousVideo}
+                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    ← Anterior
+                  </button>
 
-                <button
-                  disabled={playlistPlayerIndex === playlistVideosToPlay.length - 1}
-                  onClick={() => setPlaylistPlayerIndex(i => Math.min(i + 1, playlistVideosToPlay.length - 1))}
-                  className="px-3 py-1 bg-zinc-700 rounded disabled:opacity-50 transition-colors duration-200"
-                >
-                  Próximo
-                </button>
+                  <div className="text-center">
+                    <div className="text-sm font-medium">
+                      {playlistPlayerIndex + 1} / {playlistVideosToPlay.length}
+                    </div>
+                    <div className="text-xs text-gray-300 max-w-48 truncate">
+                      {playlistVideosToPlay[playlistPlayerIndex]?.nome}
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={playlistPlayerIndex === playlistVideosToPlay.length - 1}
+                    onClick={goToNextVideo}
+                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    Próximo →
+                  </button>
+                </div>
               </div>
             )}
           </div>

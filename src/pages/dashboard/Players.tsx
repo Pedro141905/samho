@@ -266,9 +266,9 @@ public class MainActivity extends AppCompatActivity {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Preview - Player Universal</h2>
           <div className="max-w-4xl">
             <UniversalVideoPlayer
-              src={streamUrl}
+              src={`/content/${userLogin}/videos/sample.mp4`}
               title="Transmissão ao Vivo - Exemplo"
-              isLive={true}
+              isLive={false}
               autoplay={customSettings.autoplay}
               muted={customSettings.muted}
               controls={customSettings.controls}
@@ -287,7 +287,8 @@ public class MainActivity extends AppCompatActivity {
           </div>
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-blue-800 text-sm">
-              <strong>Preview:</strong> Este é o Player Universal em ação. Funciona perfeitamente em celulares, tablets e computadores com controles adaptativos.
+              <strong>Preview:</strong> Este é o Player Universal em ação. Funciona perfeitamente em celulares, tablets e computadores com controles adaptativos. 
+              O vídeo de exemplo pode não carregar se não houver arquivos no servidor.
             </p>
           </div>
         </div>

@@ -80,6 +80,25 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Função para construir URL correta baseada no tipo de arquivo
+  const buildVideoUrl = (src: string) => {
+    if (!src) return '';
+    
+    // Se já é uma URL completa, usar como está
+    if (src.startsWith('http')) {
+      return src;
+    }
+    
+    // Detectar se é um caminho local do servidor
+    if (src.startsWith('/') || src.includes('content/')) {
+      // Construir URL para o proxy do backend
+      const cleanPath = src.replace('/content', '').replace(/^\/+/, '');
+      return `/content/${cleanPath}`;
+    }
+    
+    return src;
+  };
+
   // Inicializar player
   useEffect(() => {
     const video = videoRef.current;
@@ -181,13 +200,16 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
     const video = videoRef.current;
     if (!video || !src) return;
 
+    const videoUrl = buildVideoUrl(src);
+    console.log('🎥 Carregando vídeo:', { original: src, processed: videoUrl });
+
     // Limpar HLS anterior se existir
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
     }
 
-    if (src.includes('.m3u8')) {
+    if (videoUrl.includes('.m3u8')) {
       // Stream HLS
       if (Hls.isSupported()) {
         const hls = new Hls({
@@ -200,7 +222,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
           liveMaxLatencyDurationCount: isLive ? 5 : 10,
         });
 
-        hls.loadSource(src);
+        hls.loadSource(videoUrl);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -220,7 +242,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         hlsRef.current = hls;
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // Safari nativo
-        video.src = src;
+        video.src = videoUrl;
         if (autoplay) {
           video.play().catch(console.error);
         }
@@ -229,7 +251,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       }
     } else {
       // Vídeo regular
-      video.src = src;
+      video.src = videoUrl;
       if (autoplay) {
         video.play().catch(console.error);
       }

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-toastify";
 import { Play, Trash2 } from "lucide-react";
+import UniversalVideoPlayer from "../../components/UniversalVideoPlayer";
+import { X } from "lucide-react";
 
 type Folder = {
   id: number;
@@ -70,12 +72,25 @@ function ModalVideo({
     if (indexAtual < videos.length - 1) {
       setIndexAtual(indexAtual + 1);
     } else {
-      onFechar();
+      // Repetir playlist do início
+      setIndexAtual(0);
     }
   };
 
-  // Construir URL completa para o vídeo
-  const getVideoUrl = (video: Video) => {
+  const goToPreviousVideo = () => {
+    if (indexAtual > 0) {
+      setIndexAtual(indexAtual - 1);
+    }
+  };
+
+  const goToNextVideo = () => {
+    if (indexAtual < videos.length - 1) {
+      setIndexAtual(indexAtual + 1);
+    }
+  };
+
+  // Função para construir URL do vídeo
+  const buildVideoUrl = (video: Video) => {
     if (!video.url) return '';
     
     // Se a URL já é completa, usar como está
@@ -83,95 +98,76 @@ function ModalVideo({
       return video.url;
     }
     
-    // Construir URL correta para VOD no Wowza
-    const isProduction = window.location.hostname === 'samhost.wcore.com.br';
-    const wowzaHost = isProduction ? 'samhost.wcore.com.br' : '51.222.156.223';
-    
-    // Se a URL já contém vod/_definst_, usar como está
-    if (video.url.includes('vod/_definst_')) {
-      return video.url.replace('51.222.156.223', wowzaHost);
+    // Para arquivos locais, usar o proxy do backend
+    if (video.url.startsWith('/') || video.url.includes('content/')) {
+      const cleanPath = video.url.replace('/content', '').replace(/^\/+/, '');
+      return `/content/${cleanPath}`;
     }
     
-    // Construir URL VOD correta
-    const cleanPath = video.url.replace('/content', '').replace(/^\/+/, '');
-    const pathParts = cleanPath.split('/');
-    
-    if (pathParts.length >= 3) {
-      const userLogin = pathParts[0];
-      const folderName = pathParts[1]; 
-      const fileName = pathParts[2];
-      const fileExtension = fileName.split('.').pop().toLowerCase();
-      
-      if (fileExtension === 'mp4') {
-        return `http://${wowzaHost}:1935/vod/_definst_/mp4:${userLogin}/${folderName}/${fileName}/playlist.m3u8`;
-      } else {
-        return `http://${wowzaHost}:1935/vod/_definst_/${userLogin}/${folderName}/${fileName}/playlist.m3u8`;
-      }
-    }
-    
-    return `http://${wowzaHost}:1935/vod/_definst_/${cleanPath}/playlist.m3u8`;
+    // Retornar URL original se não conseguir processar
+    return video.url;
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-      onClick={onFechar}
-    >
-      <div
-        className="bg-white rounded shadow-lg max-w-5xl w-full max-h-[95vh] p-4 flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="font-semibold text-lg truncate">{video?.nome || "Nenhum vídeo"}</h3>
-          <button onClick={onFechar} className="text-gray-600 hover:text-gray-900 font-bold text-xl leading-none">&times;</button>
-        </div>
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 p-4">
+      <div className="bg-black rounded-lg max-w-[95vw] max-h-[95vh] w-full relative">
+        <button
+          onClick={onFechar}
+          className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-80 transition-colors duration-200"
+          aria-label="Fechar player"
+        >
+          <X size={24} />
+        </button>
+
         {video ? (
-          <div className="flex-1 flex flex-col">
-            <video
-              key={getVideoUrl(video)} // Força reload quando muda o vídeo
-              className="w-full flex-1 max-h-[80vh] bg-black"
-              src={getVideoUrl(video)}
-              controls
-              autoPlay
-              onEnded={proximoVideo}
-              onError={(e) => {
-                console.error('Erro ao carregar vídeo:', e);
-                console.log('URL do vídeo:', getVideoUrl(video));
-                toast.error('Erro ao carregar o vídeo. Verifique se o arquivo existe.');
-              }}
-              onLoadStart={() => {
-                console.log('Carregando vídeo:', getVideoUrl(video));
-              }}
-            >
-              Seu navegador não suporta o elemento de vídeo.
-            </video>
-            
-            {/* Debug info - remover em produção */}
-            <div className="mt-2 p-2 bg-gray-100 text-xs text-gray-600">
-              <p><strong>URL:</strong> {getVideoUrl(video)}</p>
-              <p><strong>Arquivo:</strong> {video.url}</p>
+          <>
+            {/* Player Universal */}
+            <div className="w-full h-full">
+              <UniversalVideoPlayer
+                src={buildVideoUrl(video)}
+                title={video.nome}
+                autoplay={true}
+                controls={true}
+                onEnded={proximoVideo}
+                className="w-full h-full"
+              />
             </div>
-          </div>
+
+            {/* Controles da playlist */}
+            {videos.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg">
+                <div className="flex items-center justify-between space-x-6">
+                  <button
+                    onClick={goToPreviousVideo}
+                    disabled={indexAtual === 0}
+                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    ← Anterior
+                  </button>
+
+                  <div className="text-center">
+                    <div className="text-sm font-medium">
+                      {indexAtual + 1} / {videos.length}
+                    </div>
+                    <div className="text-xs text-gray-300 max-w-48 truncate">
+                      {video.nome}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={goToNextVideo}
+                    disabled={indexAtual === videos.length - 1}
+                    className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50 hover:bg-gray-600 transition-colors duration-200"
+                  >
+                    Próximo →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
-          <p>Nenhum vídeo para reproduzir</p>
-        )}
-        {videos.length > 1 && (
-          <div className="mt-2 flex justify-between items-center text-sm text-gray-700">
-            <button
-              onClick={() => setIndexAtual(i => Math.max(i - 1, 0))}
-              disabled={indexAtual === 0}
-              className={`px-2 py-1 rounded ${indexAtual === 0 ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-200"}`}
-            >
-              Anterior
-            </button>
-            <span>{indexAtual + 1} / {videos.length}</span>
-            <button
-              onClick={() => setIndexAtual(i => Math.min(i + 1, videos.length - 1))}
-              disabled={indexAtual === videos.length - 1}
-              className={`px-2 py-1 rounded ${indexAtual === videos.length - 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-200"}`}
-            >
-              Próximo
-            </button>
+          <div className="flex items-center justify-center h-full text-white">
+            <p>Nenhum vídeo para reproduzir</p>
           </div>
         )}
       </div>
