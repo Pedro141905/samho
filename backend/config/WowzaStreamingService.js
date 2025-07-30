@@ -83,6 +83,19 @@ class WowzaStreamingService {
                 this.client = new DigestFetch(this.wowzaUser, this.wowzaPassword);
                 
                 console.log(`Wowza inicializado: ${server.nome} (${server.ip})`);
+                
+                // Testar conexão
+                try {
+                    const testResult = await this.testConnection();
+                    if (testResult.success) {
+                        console.log(`✅ Conexão Wowza testada com sucesso`);
+                    } else {
+                        console.log(`⚠️ Aviso: Teste de conexão Wowza falhou`);
+                    }
+                } catch (testError) {
+                    console.log(`⚠️ Aviso: Não foi possível testar conexão Wowza`);
+                }
+                
                 return true;
             } else {
                 console.error('Nenhum servidor Wowza ativo encontrado no banco de dados');

@@ -176,9 +176,13 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
       setConnectionStatus('disconnected');
       const target = e.target as HTMLVideoElement;
       
-      // Tentar URLs alternativas antes de mostrar erro
-      if (src) {
+      console.error('❌ Erro no vídeo:', target.error);
+      
+      // Tentar URLs alternativas apenas uma vez
+      if (src && !target.dataset.retried) {
         console.log('🔄 Tentando URLs alternativas...');
+        target.dataset.retried = 'true';
+        
         const alternativeUrl = await tryAlternativeUrls(src);
         if (alternativeUrl !== src) {
           console.log(`🔄 Tentando URL alternativa: ${alternativeUrl}`);
@@ -187,8 +191,7 @@ const UniversalVideoPlayer: React.FC<UniversalVideoPlayerProps> = ({
         }
       }
       
-      const errorMsg = `Erro ao carregar vídeo: ${target.error?.message || 'Arquivo não encontrado ou sem permissão'}`;
-      console.error('❌ Erro no vídeo:', target.error);
+      const errorMsg = `Erro ao carregar vídeo: ${target.error?.message || 'Arquivo não encontrado'}`;
       setError(errorMsg);
       if (onError) onError(e);
     };

@@ -64,6 +64,9 @@ const authMiddleware = async (req, res, next) => {
 
       next();
     } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expirado', expired: true });
+      }
       return res.status(401).json({ error: 'Token inválido' });
     }
   } catch (error) {

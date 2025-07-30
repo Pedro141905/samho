@@ -83,7 +83,7 @@ router.post('/login', async (req, res) => {
         codigo_servidor: user.codigo_servidor || null
       },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }
     );
 
     res.json({
@@ -122,7 +122,16 @@ router.get('/me', async (req, res) => {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expirado', expired: true });
+      }
+      return res.status(401).json({ error: 'Token inválido' });
+    }
     
     let rows = [];
     

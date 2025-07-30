@@ -88,7 +88,9 @@ router.get('/', authMiddleware, async (req, res) => {
       } else {
         // Construir URL correta para o vídeo
         const fileName = video.nome;
-        url = `/content${video.url}`;
+        // Garantir que a URL está no formato correto
+        const cleanPath = video.url.startsWith('/') ? video.url : `/${video.url}`;
+        url = `/content${cleanPath}`;
         console.log(`🎥 Vídeo: ${fileName} -> URL: ${url}`);
       }
       return {

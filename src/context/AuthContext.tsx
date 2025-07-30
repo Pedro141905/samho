@@ -73,6 +73,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(validatedUser);
         setIsAuthenticated(true);
       } else {
+        const errorData = await response.json();
+        if (errorData.expired) {
+          // Token expirado, fazer logout automático
+          console.log('Token expirado, fazendo logout...');
+          localStorage.removeItem('auth_token');
+          setUser(null);
+          setIsAuthenticated(false);
+          navigate('/login');
+          return;
+        }
         localStorage.removeItem('auth_token');
       }
     } catch (error) {
